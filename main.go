@@ -60,13 +60,14 @@ func (p Program) Execute() (err error) {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
-
-		// Step 1 - Replace search string in files content
 		fileInfo, err := file.Stat()
 		if err != nil {
 			return err
 		}
+		// close file directly (no defer) to prevent to many open files error
+		file.Close()
+
+		// Step 1 - Replace search string in files content
 		if !fileInfo.IsDir() {
 			bytes, err := ioutil.ReadFile(path)
 			if err != nil {
