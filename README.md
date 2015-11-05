@@ -1,0 +1,1 @@
+[![Build Status](https://travis-ci.org/holgerk/search-and-replace.svg)](https://travis-ci.org/holgerk/search-and-replace)
