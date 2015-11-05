@@ -80,7 +80,7 @@ func (p Program) Execute() (err error) {
 			}
 		}
 
-		// Step 2 - Replace search string in file and directory name
+		// Step 2 - Replace search string in file or directory name
 		baseName := filepath.Base(path)
 		newName := replace.Execute(baseName)
 		if newName != baseName {
