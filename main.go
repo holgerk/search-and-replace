@@ -17,6 +17,7 @@ func usage() {
 
 func main() {
 	flag.Usage = usage
+	dryRun := flag.Bool("dry-run", false, "If true -> do not change anything [default: false]")
 	flag.Parse()
 	if flag.NArg() != 2 {
 		usage()
@@ -28,6 +29,7 @@ func main() {
 		Search:        flag.Arg(0),
 		Replace:       flag.Arg(1),
 		Stdout:        os.Stdout,
+		DryRun:        *dryRun,
 	}
 	err := program.Execute()
 	if err != nil {
@@ -40,10 +42,13 @@ type Program struct {
 	Search        string
 	Replace       string
 	Stdout        io.Writer
+	DryRun        bool
 }
 
 func (p Program) Execute() (err error) {
-	fmt.Fprintf(p.Stdout, "Searching for: %s and replacing with: %s...\n", p.Search, p.Replace)
+	fmt.Fprintf(p.Stdout,
+		"Searching for: %s and replacing with: %s (dry-run: %v)...\n",
+		p.Search, p.Replace, p.DryRun)
 
 	replace := Replace{
 		Search:  p.Search,
@@ -77,7 +82,10 @@ func (p Program) Execute() (err error) {
 			newContent := replace.Execute(content)
 			if newContent != content {
 				fmt.Fprintln(p.Stdout, "Write: "+path)
-				ioutil.WriteFile(path, []byte(newContent), fileInfo.Mode())
+				if !p.DryRun {
+					err = ioutil.WriteFile(path, []byte(newContent), fileInfo.Mode())
+					panicIfErr(err)
+				}
 			}
 		}
 
@@ -87,8 +95,10 @@ func (p Program) Execute() (err error) {
 		if newName != baseName {
 			newPath := filepath.Join(filepath.Dir(path), newName)
 			fmt.Fprintln(p.Stdout, "Move to: "+newPath)
-			err = os.Rename(path, newPath)
-			panicIfErr(err)
+			if !p.DryRun {
+				err = os.Rename(path, newPath)
+				panicIfErr(err)
+			}
 		}
 	}
 	return

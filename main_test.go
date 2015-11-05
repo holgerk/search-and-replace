@@ -21,43 +21,50 @@ var updateFlag = flag.Bool("update", false, "Update golden directories")
 
 func TestMain(t *testing.T) {
 	cases := []struct {
-		directory string
+		referenceDir string
+		dryRun       bool
 	}{
-		{"testdata/t1"},
-		{"testdata/t2"},
+		{"testdata/t1", false},
+		{"testdata/t2", false},
+		{"testdata/t1", true},
 	}
 	for _, c := range cases {
-		referenceDirectory := c.directory
-		workingDirectory := referenceDirectory + ".got"
-		goldenDirectory := referenceDirectory + ".golden"
+		referenceDir := c.referenceDir
+		workingDir := referenceDir + ".got"
+		goldenDir := referenceDir + ".golden"
 
-		os.RemoveAll(workingDirectory)
-		err := copyDirectory(referenceDirectory, workingDirectory)
+		os.RemoveAll(workingDir)
+		err := copyDirectory(referenceDir, workingDir)
 		if err != nil {
 			panic(err)
 		}
 
 		var stdout bytes.Buffer
 		program := Program{
-			RootDirectory: workingDirectory,
+			RootDirectory: workingDir,
 			Search:        "foo",
 			Replace:       "bar",
 			Stdout:        &stdout,
+			DryRun:        c.dryRun,
 		}
 		program.Execute()
 
 		// compare directory.got with directory.golden
-		cmd := exec.Command("diff", "-ru", workingDirectory, goldenDirectory)
+		compareDir := goldenDir
+		if c.dryRun {
+			compareDir = referenceDir
+		}
+		cmd := exec.Command("diff", "-ru", workingDir, compareDir)
 		cmd.Stdout = new(bytes.Buffer)
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			t.Errorf("Test for %s failed: %s.\n%s\n",
-				workingDirectory, err, cmd.Stdout)
+			t.Errorf("Test for %s (dryRun: %v) failed: %s.\n%s\n",
+				workingDir, c.dryRun, err, cmd.Stdout)
 
 			if *updateFlag {
-				t.Logf("Updating golden: %s...", goldenDirectory)
-				os.RemoveAll(goldenDirectory)
-				err := copyDirectory(workingDirectory, goldenDirectory)
+				t.Logf("Updating golden: %s...", goldenDir)
+				os.RemoveAll(goldenDir)
+				err := copyDirectory(workingDir, goldenDir)
 				if err != nil {
 					t.Errorf("Update failed: %s", err)
 				}
