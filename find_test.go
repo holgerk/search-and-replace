@@ -13,7 +13,7 @@ func TestFind(t *testing.T) {
 		{"testdata/t1", []string{"testdata/t1/foo.css"}},
 	}
 	for _, c := range cases {
-		got := Find(c.in)
+		got := Find(c.in, Filter)
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("Finder(%v) == %v, want %v", c.in, got, c.want)
 		}

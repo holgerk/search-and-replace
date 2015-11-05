@@ -50,7 +50,7 @@ func (p Program) Execute() (err error) {
 		Replace: p.Replace,
 	}
 
-	entries := Find(p.RootDirectory)
+	entries := Find(p.RootDirectory, Filter)
 
 	// iterate reversed, so directories are renamed after files are written
 	for i := len(entries) - 1; i >= 0; i-- {

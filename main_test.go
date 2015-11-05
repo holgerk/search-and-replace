@@ -20,39 +20,47 @@ import (
 var updateFlag = flag.Bool("update", false, "Update golden directories")
 
 func TestMain(t *testing.T) {
-	var stdout bytes.Buffer
-
-	referenceDirectory := "testdata/t1"
-	workingDirectory := referenceDirectory + ".got"
-	goldenDirectory := referenceDirectory + ".golden"
-
-	os.RemoveAll(workingDirectory)
-	err := copyDirectory(referenceDirectory, workingDirectory)
-	if err != nil {
-		panic(err)
+	cases := []struct {
+		directory string
+	}{
+		{"testdata/t1"},
+		{"testdata/t2"},
 	}
+	for _, c := range cases {
+		referenceDirectory := c.directory
+		workingDirectory := referenceDirectory + ".got"
+		goldenDirectory := referenceDirectory + ".golden"
 
-	program := Program{
-		RootDirectory: workingDirectory,
-		Search:        "foo",
-		Replace:       "bar",
-		Stdout:        &stdout,
-	}
-	program.Execute()
+		os.RemoveAll(workingDirectory)
+		err := copyDirectory(referenceDirectory, workingDirectory)
+		if err != nil {
+			panic(err)
+		}
 
-	// compare directory.got with directory.golden
-	cmd := exec.Command("diff", "-u", workingDirectory, goldenDirectory)
-	cmd.Stdout = new(bytes.Buffer)
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		t.Errorf("Test for %s failed: %s.\n%s\n",
-			workingDirectory, err, cmd.Stdout)
+		var stdout bytes.Buffer
+		program := Program{
+			RootDirectory: workingDirectory,
+			Search:        "foo",
+			Replace:       "bar",
+			Stdout:        &stdout,
+		}
+		program.Execute()
 
-		if *updateFlag {
-			t.Logf("Updating golden: %s...", goldenDirectory)
-			err := copyDirectory(workingDirectory, goldenDirectory)
-			if err != nil {
-				t.Errorf("Update failed: %s", err)
+		// compare directory.got with directory.golden
+		cmd := exec.Command("diff", "-ru", workingDirectory, goldenDirectory)
+		cmd.Stdout = new(bytes.Buffer)
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			t.Errorf("Test for %s failed: %s.\n%s\n",
+				workingDirectory, err, cmd.Stdout)
+
+			if *updateFlag {
+				t.Logf("Updating golden: %s...", goldenDirectory)
+				os.RemoveAll(goldenDirectory)
+				err := copyDirectory(workingDirectory, goldenDirectory)
+				if err != nil {
+					t.Errorf("Update failed: %s", err)
+				}
 			}
 		}
 	}
