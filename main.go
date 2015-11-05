@@ -62,7 +62,7 @@ func (p Program) Execute() (err error) {
 		}
 		defer file.Close()
 
-		// Step 1 - Replace search string in files
+		// Step 1 - Replace search string in files content
 		fileInfo, err := file.Stat()
 		if err != nil {
 			return err

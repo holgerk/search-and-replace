@@ -10,7 +10,7 @@ func TestFind(t *testing.T) {
 		in   string
 		want []string
 	}{
-		{"testdata/t1", []string{"testdata/t1", "testdata/t1/foo.css"}},
+		{"testdata/t1", []string{"testdata/t1/foo.css"}},
 	}
 	for _, c := range cases {
 		got := Find(c.in)
