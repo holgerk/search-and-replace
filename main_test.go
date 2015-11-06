@@ -1,10 +1,10 @@
 package main
 
 // This is an integration Test which runs against real directories and
-// compares the transformation against golden directories, containing
-// the expected content and structure.
+// compares the transformation against directories containing
+// the expected content and structure (golden directories).
 //
-// This was heavily inspired by oracle_test.go, thanks.
+// This was heavily inspired by oracle_test.go, thx.
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ import (
 
 var updateFlag = flag.Bool("update", false, "Update golden directories")
 
-func TestMain(t *testing.T) {
+func TestMainExecute(t *testing.T) {
 	cases := []struct {
 		referenceDir string
 		dryRun       bool
@@ -75,19 +75,20 @@ func TestPermissionProblems(t *testing.T) {
 }
 
 func run(workingDir string, dryRun, verbose bool) string {
+	var args []string
 	var stdout bytes.Buffer
-	program := Program{
-		RootDirectory: workingDir,
-		Search:        "foo",
-		Replace:       "bar",
-		Stdout:        &stdout,
-		DryRun:        dryRun,
-		Verbose:       verbose,
+
+	if dryRun {
+		args = append(args, "-dry-run")
 	}
-	err := program.Execute()
-	if err != nil {
-		panic(fmt.Errorf("Program-Execution error(%s)", err))
+	if verbose {
+		args = append(args, "-verbose")
 	}
+
+	args = append(args, "foo") // search
+	args = append(args, "bar") // replace
+
+	mainSub(workingDir, &stdout, args)
 
 	return stdout.String()
 }
