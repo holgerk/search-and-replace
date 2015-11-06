@@ -68,13 +68,6 @@ func TestMain(t *testing.T) {
 
 func TestPermissionProblems(t *testing.T) {
 	stdout := run("testdata/t3", false, true)
-	err := os.Chmod("testdata/t3/foo-not-writable.txt", 0444)
-	if err != nil {
-		panic(err)
-	}
-	if !strings.Contains(stdout, "Could not write: testdata/t3/foo-not-writable") {
-		t.Errorf("Missing [Could not write...] message in(%s)", stdout)
-	}
 	if !strings.Contains(stdout, "Could not move: testdata/t3/foo-not-moveable") {
 		t.Errorf("Missing [Could not open...] message in(%s)", stdout)
 	}
