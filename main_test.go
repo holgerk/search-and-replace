@@ -9,6 +9,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -39,15 +40,7 @@ func TestMain(t *testing.T) {
 			panic(err)
 		}
 
-		var stdout bytes.Buffer
-		program := Program{
-			RootDirectory: workingDir,
-			Search:        "foo",
-			Replace:       "bar",
-			Stdout:        &stdout,
-			DryRun:        c.dryRun,
-		}
-		program.Execute()
+		run(workingDir, c.dryRun, false)
 
 		// compare directory.got with directory.golden
 		compareDir := goldenDir
@@ -71,8 +64,35 @@ func TestMain(t *testing.T) {
 			}
 		}
 	}
+}
 
-	// fmt.Println(stdout.String())
+func TestPermissionProblems(t *testing.T) {
+	stdout := run("testdata/t3", false, true)
+	if !strings.Contains(stdout, "Could not write: testdata/t3/foo-not-writable") {
+		t.Errorf("Missing [Could not open...] message in(%s)", stdout)
+	}
+	if !strings.Contains(stdout, "Could not move: testdata/t3/foo-not-moveable") {
+		t.Errorf("Missing [Could not open...] message in(%s)", stdout)
+	}
+	// fmt.Println(stdout)
+}
+
+func run(workingDir string, dryRun, verbose bool) string {
+	var stdout bytes.Buffer
+	program := Program{
+		RootDirectory: workingDir,
+		Search:        "foo",
+		Replace:       "bar",
+		Stdout:        &stdout,
+		DryRun:        dryRun,
+		Verbose:       verbose,
+	}
+	err := program.Execute()
+	if err != nil {
+		panic(fmt.Errorf("Program-Execution error(%s)", err))
+	}
+
+	return stdout.String()
 }
 
 func copyDirectory(source, target string) (err error) {
@@ -89,6 +109,9 @@ func copyDirectory(source, target string) (err error) {
 		}
 		return
 	})
+	if err != nil {
+		return fmt.Errorf("Could not copy directory(%s)", err)
+	}
 	return
 }
 

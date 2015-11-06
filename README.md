@@ -8,4 +8,9 @@
 search-and-replace [flags] SEARCH REPLACE
   -dry-run
         If true -> do not change anything [default: false]
+  -verbose
+        If true -> increase verbosity [default: false]
 ```
+
+## TODO
+- Do not follow symlinks

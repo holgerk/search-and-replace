@@ -18,6 +18,7 @@ func usage() {
 func main() {
 	flag.Usage = usage
 	dryRun := flag.Bool("dry-run", false, "If true -> do not change anything [default: false]")
+	verbose := flag.Bool("verbose", false, "If true -> increase verbosity [default: false]")
 	flag.Parse()
 	if flag.NArg() != 2 {
 		usage()
@@ -30,10 +31,11 @@ func main() {
 		Replace:       flag.Arg(1),
 		Stdout:        os.Stdout,
 		DryRun:        *dryRun,
+		Verbose:       *verbose,
 	}
 	err := program.Execute()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("Program-Execution error(%s)", err))
 	}
 }
 
@@ -43,11 +45,12 @@ type Program struct {
 	Replace       string
 	Stdout        io.Writer
 	DryRun        bool
+	Verbose       bool
 }
 
 func (p Program) Execute() (err error) {
-	fmt.Fprintf(p.Stdout,
-		"Searching for: %s and replacing with: %s (dry-run: %v)...\n",
+	p.reportInfo(
+		"(search: %s, replace: %s, dry-run: %v)",
 		p.Search, p.Replace, p.DryRun)
 
 	replace := Replace{
@@ -61,13 +64,19 @@ func (p Program) Execute() (err error) {
 	for i := len(entries) - 1; i >= 0; i-- {
 		path := entries[i]
 
+		if p.Verbose {
+			p.reportInfo("Processing %s...", path)
+		}
+
 		file, err := os.Open(path)
 		if err != nil {
-			return err
+			p.reportError("Could not open: %s (%s)", path, err)
+			continue
 		}
 		fileInfo, err := file.Stat()
 		if err != nil {
-			return err
+			p.reportError("Could not stat: %s (%s)", path, err)
+			continue
 		}
 		// close file directly (no defer) to prevent to many open files error
 		file.Close()
@@ -76,15 +85,19 @@ func (p Program) Execute() (err error) {
 		if !fileInfo.IsDir() {
 			bytes, err := ioutil.ReadFile(path)
 			if err != nil {
-				return err
+				p.reportError("Could not read: %s (%s)", path, err)
+				continue
 			}
 			content := string(bytes)
 			newContent := replace.Execute(content)
 			if newContent != content {
-				fmt.Fprintln(p.Stdout, "Write: "+path)
+				p.reportInfo("Write: %s", path)
 				if !p.DryRun {
 					err = ioutil.WriteFile(path, []byte(newContent), fileInfo.Mode())
-					panicIfErr(err)
+					if err != nil {
+						p.reportError("Could not write: %s (%s)", path, err)
+						continue
+					}
 				}
 			}
 		}
@@ -94,18 +107,21 @@ func (p Program) Execute() (err error) {
 		newName := replace.Execute(baseName)
 		if newName != baseName {
 			newPath := filepath.Join(filepath.Dir(path), newName)
-			fmt.Fprintln(p.Stdout, "Move to: "+newPath)
+			p.reportInfo("Move to: %s", newPath)
 			if !p.DryRun {
 				err = os.Rename(path, newPath)
-				panicIfErr(err)
+				p.reportError("Could not move: %s (%s)", path, err)
+				continue
 			}
 		}
 	}
 	return
 }
 
-func panicIfErr(err interface{}) {
-	if err != nil {
-		panic(err)
-	}
+func (p Program) reportError(format string, a ...interface{}) {
+	fmt.Fprintf(p.Stdout, "[ERROR] "+format+"\n", a...)
+}
+
+func (p Program) reportInfo(format string, a ...interface{}) {
+	fmt.Fprintf(p.Stdout, "[INFO] "+format+"\n", a...)
 }
