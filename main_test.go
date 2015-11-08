@@ -68,8 +68,8 @@ func TestMainExecute(t *testing.T) {
 
 func TestPermissionProblems(t *testing.T) {
 	stdout := run("testdata/t3", false, true)
-	if !strings.Contains(stdout, "Could not move: testdata/t3/foo-not-moveable") {
-		t.Errorf("Missing [Could not open...] message in(%s)", stdout)
+	if !strings.Contains(stdout, "Could not move: foo-not-moveable") {
+		t.Errorf("Missing [Could not move...] message in(%s)", stdout)
 	}
 	// fmt.Println(stdout)
 }

@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/mgutz/ansi"
 )
 
 func main() {
@@ -57,8 +60,13 @@ type Program struct {
 
 func (p Program) Execute() (err error) {
 	p.reportInfo(
-		"(search: %s, replace: %s, dry-run: %v)",
-		p.Search, p.Replace, p.DryRun)
+		"(search: %s, replace: %s, dry-run: %v)", p.Search, p.Replace, p.DryRun)
+	p.reportVerbose("Root-Directory: %s", p.RootDirectory)
+
+	red := ansi.ColorFunc("red")
+	redBold := ansi.ColorFunc("red+b")
+	green := ansi.ColorFunc("green")
+	greenBold := ansi.ColorFunc("green+b")
 
 	replace := Replace{
 		Search:  p.Search,
@@ -71,18 +79,17 @@ func (p Program) Execute() (err error) {
 	for i := len(entries) - 1; i >= 0; i-- {
 		path := entries[i]
 
-		if p.Verbose {
-			p.reportInfo("Processing %s...", path)
-		}
+		p.reportVerbose(
+			"Processing(%d/%d) %s...", len(entries)-i, len(entries), p.shortenPath(path))
 
 		file, err := os.Open(path)
 		if err != nil {
-			p.reportError("Could not open: %s (%s)", path, err)
+			p.reportError("Could not open: %s (%s)", p.shortenPath(path), err)
 			continue
 		}
 		fileInfo, err := file.Stat()
 		if err != nil {
-			p.reportError("Could not stat: %s (%s)", path, err)
+			p.reportError("Could not stat: %s (%s)", p.shortenPath(path), err)
 			continue
 		}
 		// close file directly (no defer) to prevent to many open files error
@@ -92,17 +99,31 @@ func (p Program) Execute() (err error) {
 		if !fileInfo.IsDir() {
 			bytes, err := ioutil.ReadFile(path)
 			if err != nil {
-				p.reportError("Could not read: %s (%s)", path, err)
+				p.reportError("Could not read: %s (%s)", p.shortenPath(path), err)
 				continue
 			}
 			content := string(bytes)
-			newContent := replace.Execute(content)
+			newContent := replace.Execute(content, func(info ReplaceInfo) bool {
+				p.reportInfo("Match #%d", 1)
+				p.print(info.LinesBeforeMatch)
+
+				p.print(red(info.MatchLine[:info.MatchLineMatchIndex[0]]))
+				p.print(redBold(info.MatchLine[info.MatchLineMatchIndex[0]:info.MatchLineMatchIndex[1]]))
+				p.print(red(info.MatchLine[info.MatchLineMatchIndex[1]:]))
+
+				p.print(green(info.ReplacementLine[:info.ReplacementLineReplacementIndex[0]]))
+				p.print(greenBold(info.ReplacementLine[info.ReplacementLineReplacementIndex[0]:info.ReplacementLineReplacementIndex[1]]))
+				p.print(green(info.ReplacementLine[info.ReplacementLineReplacementIndex[1]:]))
+
+				p.print(info.LinesAfterMatch)
+				return true
+			})
 			if newContent != content {
-				p.reportInfo("Write: %s", path)
+				p.reportInfo("Write: %s", p.shortenPath(path))
 				if !p.DryRun {
 					err = ioutil.WriteFile(path, []byte(newContent), fileInfo.Mode())
 					if err != nil {
-						p.reportError("Could not write: %s (%s)", path, err)
+						p.reportError("Could not write: %s (%s)", p.shortenPath(path), err)
 						continue
 					}
 				}
@@ -111,18 +132,24 @@ func (p Program) Execute() (err error) {
 
 		// Step 2 - Replace search string in file or directory name
 		baseName := filepath.Base(path)
-		newName := replace.Execute(baseName)
+		newName := replace.Execute(baseName, func(info ReplaceInfo) bool {
+			return true
+		})
 		if newName != baseName {
 			newPath := filepath.Join(filepath.Dir(path), newName)
-			p.reportInfo("Move to: %s", newPath)
+			p.reportInfo("Move to: %s", p.shortenPath(newPath))
 			if !p.DryRun {
 				err = os.Rename(path, newPath)
-				p.reportError("Could not move: %s (%s)", path, err)
+				p.reportError("Could not move: %s (%s)", p.shortenPath(path), err)
 				continue
 			}
 		}
 	}
 	return
+}
+
+func (p Program) shortenPath(path string) string {
+	return strings.Replace(path, p.RootDirectory+"/", "", 1)
 }
 
 func (p Program) reportError(format string, a ...interface{}) {
@@ -131,4 +158,15 @@ func (p Program) reportError(format string, a ...interface{}) {
 
 func (p Program) reportInfo(format string, a ...interface{}) {
 	fmt.Fprintf(p.Stdout, "[INFO] "+format+"\n", a...)
+}
+
+func (p Program) print(s string) {
+	fmt.Fprint(p.Stdout, s)
+}
+
+func (p Program) reportVerbose(format string, a ...interface{}) {
+	if !p.Verbose {
+		return
+	}
+	p.reportInfo(format, a...)
 }

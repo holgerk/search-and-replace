@@ -9,9 +9,75 @@ func TestReplace(t *testing.T) {
 		{"foobar", "foo", "bar", "barbar"},
 	}
 	for _, c := range cases {
-		got := Replace{Search: c.search, Replace: c.replace}.Execute(c.in)
+		got := Replace{Search: c.search, Replace: c.replace}.Execute(c.in, nil)
 		if got != c.want {
-			t.Errorf("Replace(%v, %v, %v) == %v, want %v", c.in, c.search, c.replace, got, c.want)
+			t.Errorf(
+				"Replace{Search: %v, Replace: %v}.Execute(%v) == %v, want %v",
+				c.search, c.replace, c.in, got, c.want)
 		}
+	}
+}
+
+func TestReplaceCallback(t *testing.T) {
+	cases := []struct {
+		callbackResult bool
+		expected       string
+	}{
+		{false, "foobar"},
+		{true, "barbar"},
+	}
+	for _, c := range cases {
+		got := Replace{Search: "foo", Replace: "bar"}.Execute("foobar", func(info ReplaceInfo) bool {
+			return c.callbackResult
+		})
+		if got != c.expected {
+			t.Errorf(
+				"callbackResult: %v, expected: %v, got: %v",
+				c.callbackResult, c.expected, got)
+		}
+	}
+}
+
+func TestReplaceInfo(t *testing.T) {
+	cases := []struct {
+		content                  string
+		expectedLinesBeforeMatch string
+		expectedLinesAfterMatch  string
+	}{
+		{"foo", "", ""},
+		{
+			"line1\n" +
+				"line2\n" +
+				"line3\n" +
+				"line4\n" +
+				"line5 foo\n" +
+				"line6\n" +
+				"line7\n" +
+				"line8\n" +
+				"line9\n",
+
+			"line2\n" +
+				"line3\n" +
+				"line4\n",
+
+			"line6\n" +
+				"line7\n" +
+				"line8\n",
+		},
+	}
+	for _, c := range cases {
+		Replace{Search: "foo", Replace: "bar"}.Execute(c.content, func(info ReplaceInfo) bool {
+			if info.LinesBeforeMatch != c.expectedLinesBeforeMatch {
+				t.Errorf(
+					"LinesBeforeMatch: %v, expected: %v",
+					info.LinesBeforeMatch, c.expectedLinesBeforeMatch)
+			}
+			if info.LinesAfterMatch != c.expectedLinesAfterMatch {
+				t.Errorf(
+					"LinesAfterMatch(%v), expected(%v)",
+					info.LinesAfterMatch, c.expectedLinesAfterMatch)
+			}
+			return true
+		})
 	}
 }
