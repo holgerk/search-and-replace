@@ -63,11 +63,6 @@ func (p Program) Execute() (err error) {
 		"(search: %s, replace: %s, dry-run: %v)", p.Search, p.Replace, p.DryRun)
 	p.reportVerbose("Root-Directory: %s", p.RootDirectory)
 
-	red := ansi.ColorFunc("red")
-	redBold := ansi.ColorFunc("red+b")
-	green := ansi.ColorFunc("green")
-	greenBold := ansi.ColorFunc("green+b")
-
 	replace := Replace{
 		Search:  p.Search,
 		Replace: p.Replace,
@@ -102,20 +97,15 @@ func (p Program) Execute() (err error) {
 				p.reportError("Could not read: %s (%s)", p.shortenPath(path), err)
 				continue
 			}
+
+			matchCount := 0
+
 			content := string(bytes)
-			newContent := replace.Execute(content, func(info ReplaceInfo) bool {
-				p.reportInfo("Match #%d", 1)
-				p.print(info.LinesBeforeMatch)
+			newContent := replace.Execute(content, func(info ReplacementInfo) bool {
+				matchCount++
 
-				p.print(red(info.MatchLine[:info.MatchLineMatchIndex[0]]))
-				p.print(redBold(info.MatchLine[info.MatchLineMatchIndex[0]:info.MatchLineMatchIndex[1]]))
-				p.print(red(info.MatchLine[info.MatchLineMatchIndex[1]:]))
-
-				p.print(green(info.ReplacementLine[:info.ReplacementLineReplacementIndex[0]]))
-				p.print(greenBold(info.ReplacementLine[info.ReplacementLineReplacementIndex[0]:info.ReplacementLineReplacementIndex[1]]))
-				p.print(green(info.ReplacementLine[info.ReplacementLineReplacementIndex[1]:]))
-
-				p.print(info.LinesAfterMatch)
+				p.reportInfo("Match #%d", matchCount)
+				p.reportReplacement(info)
 				return true
 			})
 			if newContent != content {
@@ -132,7 +122,7 @@ func (p Program) Execute() (err error) {
 
 		// Step 2 - Replace search string in file or directory name
 		baseName := filepath.Base(path)
-		newName := replace.Execute(baseName, func(info ReplaceInfo) bool {
+		newName := replace.Execute(baseName, func(info ReplacementInfo) bool {
 			return true
 		})
 		if newName != baseName {
@@ -158,6 +148,25 @@ func (p Program) reportError(format string, a ...interface{}) {
 
 func (p Program) reportInfo(format string, a ...interface{}) {
 	fmt.Fprintf(p.Stdout, "[INFO] "+format+"\n", a...)
+}
+
+var red = ansi.ColorFunc("red")
+var redUnderline = ansi.ColorFunc("red+u")
+var green = ansi.ColorFunc("green")
+var greenUnderline = ansi.ColorFunc("green+u")
+
+func (p Program) reportReplacement(info ReplacementInfo) {
+	p.print(info.LinesBeforeMatch)
+
+	p.print(red(info.MatchLine[:info.MatchLineMatchIndex[0]]))
+	p.print(redUnderline(info.MatchLine[info.MatchLineMatchIndex[0]:info.MatchLineMatchIndex[1]]))
+	p.print(red(info.MatchLine[info.MatchLineMatchIndex[1]:]))
+
+	p.print(green(info.ReplLine[:info.ReplLineReplIndex[0]]))
+	p.print(greenUnderline(info.ReplLine[info.ReplLineReplIndex[0]:info.ReplLineReplIndex[1]]))
+	p.print(green(info.ReplLine[info.ReplLineReplIndex[1]:]))
+
+	p.print(info.LinesAfterMatch)
 }
 
 func (p Program) print(s string) {

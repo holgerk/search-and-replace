@@ -3,6 +3,7 @@ package main
 import "regexp"
 
 const LF = 10
+const CONTEXT_LINES = 3
 
 type Replace struct {
 	Search, Replace string
@@ -13,17 +14,29 @@ func (r Replace) Execute(in string, callback ReplaceCallback) string {
 	remainder := in
 	search := regexp.QuoteMeta(r.Search)
 	rgx := regexp.MustCompile(search)
+
+	var match []int
+	replacement := []byte{}
+
+	replacementInfo := func() ReplacementInfo {
+		content := result + remainder
+		matchOffset := len(result)
+		matchStart := match[0] + matchOffset
+		matchEnd := match[1] + matchOffset
+		return newReplacementInfo(content, string(replacement), matchStart, matchEnd)
+	}
+
 	for {
-		match := rgx.FindStringSubmatchIndex(remainder)
+		match = rgx.FindStringSubmatchIndex(remainder)
 		if match == nil {
 			result += remainder
 			break
 		}
 
-		replacement := []byte{}
+		replacement = []byte{}
 		replacement = rgx.ExpandString(replacement, r.Replace, in, match)
 
-		if callback != nil && !callback(newReplaceInfo(result, remainder, string(replacement), match)) {
+		if callback != nil && !callback(replacementInfo()) {
 			result += remainder[0:match[1]]
 		} else {
 			result += remainder[0:match[0]] + string(replacement)
@@ -34,82 +47,105 @@ func (r Replace) Execute(in string, callback ReplaceCallback) string {
 	return result
 }
 
-type ReplaceCallback func(info ReplaceInfo) bool
+type ReplaceCallback func(info ReplacementInfo) bool
 
-type ReplaceInfo struct {
-	LinesBeforeMatch                string
-	MatchLine                       string
-	MatchLineMatchIndex             []int
-	ReplacementLine                 string
-	ReplacementLineReplacementIndex []int
-	LinesAfterMatch                 string
+type ReplacementInfo struct {
+	LinesBeforeMatch    string
+	MatchLine           string
+	MatchLineMatchIndex []int
+	ReplLine            string
+	ReplLineReplIndex   []int
+	LinesAfterMatch     string
 }
 
-func newReplaceInfo(result, remainder, replacement string, match []int) ReplaceInfo {
-	matchOffset := len(result)
-	matchStart := match[0] + matchOffset
-	matchEnd := match[1] + matchOffset
+func newReplacementInfo(content, replacement string, matchStart, matchEnd int) ReplacementInfo {
+	lineStartIndex := findLineStartIndex(content, matchStart)
+	lineEndIndex := findLineEndIndex(content, matchEnd)
 
-	totalString := result + remainder
+	matchLine := content[lineStartIndex : lineEndIndex+1]
+	lineContentBeforeMatch := matchLine[:matchStart-lineStartIndex]
+	lineContentAfterMatch := matchLine[matchEnd-lineStartIndex:]
+	replacementLine := lineContentBeforeMatch + replacement + lineContentAfterMatch
 
-	// find line start index (excluding linefeed)
-	lineStartIndex := matchStart
-	for lineStartIndex >= 0 && totalString[lineStartIndex] != LF {
-		lineStartIndex--
+	matchLineMatchIndex := []int{
+		matchStart - lineStartIndex,
+		matchEnd - lineStartIndex,
 	}
-	lineStartIndex++
-
-	// find line end index (including linefeed)
-	lineEndIndex := matchEnd
-	for lineEndIndex < len(totalString) {
-		if totalString[lineEndIndex] == LF {
-			lineEndIndex++
-			break
-		}
-		lineEndIndex++
+	replacementLineReplacementIndex := []int{
+		matchStart - lineStartIndex,
+		matchStart - lineStartIndex + len(replacement),
 	}
 
-	matchLine := totalString[lineStartIndex:lineEndIndex]
-	replacementLine := matchLine[:matchStart-lineStartIndex] + replacement + matchLine[matchEnd-lineStartIndex:]
+	return ReplacementInfo{
+		LinesBeforeMatch:    linesBeforeMatch(content, lineStartIndex),
+		MatchLine:           matchLine,
+		MatchLineMatchIndex: matchLineMatchIndex,
+		ReplLine:            replacementLine,
+		ReplLineReplIndex:   replacementLineReplacementIndex,
+		LinesAfterMatch:     linesAfterMatch(content, lineEndIndex),
+	}
+}
 
-	matchLineMatchIndex := []int{matchStart - lineStartIndex, matchEnd - lineStartIndex}
-	replacementLineReplacementIndex := []int{matchStart - lineStartIndex, matchStart - lineStartIndex + len(replacement)}
+func linesBeforeMatch(content string, lineStartIndex int) string {
+	from := findPreviousLinesStartIndex(content, lineStartIndex, CONTEXT_LINES)
+	to := lineStartIndex
+	return content[from:to]
+}
 
-	linesBeforeMatch := ""
-	index := lineStartIndex
-	count := 0
+func linesAfterMatch(content string, lineEndIndex int) string {
+	if lineEndIndex == len(content)-1 {
+		return ""
+	}
+	from := lineEndIndex
+	to := findNextLinesEndIndex(content, lineEndIndex, CONTEXT_LINES)
+	if from < len(content)-1 {
+		from++
+	}
+	return content[from : to+1]
+}
+
+func findLineStartIndex(content string, fromIndex int) int {
+	index := fromIndex
+	if index <= 0 {
+		return 0
+	}
 	for index > 0 {
 		index--
-		if totalString[index] == LF {
-			count++
-			if count == 4 {
-				index++
-				linesBeforeMatch = totalString[index:lineStartIndex]
-				break
-			}
+		if content[index] == LF {
+			return index + 1
 		}
 	}
+	return 0
+}
 
-	linesAfterMatch := ""
-	index = lineEndIndex
-	count = 0
-	for index < len(totalString)-1 {
+func findLineEndIndex(content string, fromIndex int) int {
+	index := fromIndex
+	if index >= len(content)-1 {
+		return len(content) - 1
+	}
+	for index <= len(content)-1 {
+		if content[index] == LF {
+			return index
+		}
 		index++
-		if totalString[index] == LF {
-			count++
-			if count == 3 {
-				linesAfterMatch = totalString[lineEndIndex : index+1]
-				break
-			}
-		}
 	}
+	return len(content) - 1
+}
 
-	return ReplaceInfo{
-		LinesBeforeMatch:                linesBeforeMatch,
-		MatchLine:                       matchLine,
-		MatchLineMatchIndex:             matchLineMatchIndex,
-		ReplacementLine:                 replacementLine,
-		ReplacementLineReplacementIndex: replacementLineReplacementIndex,
-		LinesAfterMatch:                 linesAfterMatch,
+func findPreviousLinesStartIndex(content string, fromIndex int, n int) int {
+	// go to current lines start index
+	index := findLineStartIndex(content, fromIndex)
+	for i := 0; i < n; i++ {
+		index = findLineStartIndex(content, index-1)
 	}
+	return index
+}
+
+func findNextLinesEndIndex(content string, fromIndex int, n int) int {
+	// go to current lines end index
+	index := findLineEndIndex(content, fromIndex)
+	for i := 0; i < n; i++ {
+		index = findLineEndIndex(content, index+1)
+	}
+	return index
 }

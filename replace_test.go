@@ -27,7 +27,7 @@ func TestReplaceCallback(t *testing.T) {
 		{true, "barbar"},
 	}
 	for _, c := range cases {
-		got := Replace{Search: "foo", Replace: "bar"}.Execute("foobar", func(info ReplaceInfo) bool {
+		got := Replace{Search: "foo", Replace: "bar"}.Execute("foobar", func(info ReplacementInfo) bool {
 			return c.callbackResult
 		})
 		if got != c.expected {
@@ -38,7 +38,7 @@ func TestReplaceCallback(t *testing.T) {
 	}
 }
 
-func TestReplaceInfo(t *testing.T) {
+func TestReplacementInfoContextLines(t *testing.T) {
 	cases := []struct {
 		content                  string
 		expectedLinesBeforeMatch string
@@ -64,18 +64,31 @@ func TestReplaceInfo(t *testing.T) {
 				"line7\n" +
 				"line8\n",
 		},
+		{
+			"line1\n" +
+				"line2 foo\n" +
+				"line3\n",
+
+			"line1\n",
+
+			"line3\n",
+		},
 	}
-	for _, c := range cases {
-		Replace{Search: "foo", Replace: "bar"}.Execute(c.content, func(info ReplaceInfo) bool {
+	for index, c := range cases {
+		Replace{Search: "foo", Replace: "bar"}.Execute(c.content, func(info ReplacementInfo) bool {
 			if info.LinesBeforeMatch != c.expectedLinesBeforeMatch {
 				t.Errorf(
-					"LinesBeforeMatch: %v, expected: %v",
-					info.LinesBeforeMatch, c.expectedLinesBeforeMatch)
+					"Case: #%d - LinesBeforeMatch\n"+
+						"  actual: %#v\n"+
+						"expected: %#v\n",
+					index, info.LinesBeforeMatch, c.expectedLinesBeforeMatch)
 			}
 			if info.LinesAfterMatch != c.expectedLinesAfterMatch {
 				t.Errorf(
-					"LinesAfterMatch(%v), expected(%v)",
-					info.LinesAfterMatch, c.expectedLinesAfterMatch)
+					"Case: #%d - LinesAfterMatch\n"+
+						"  actual: %#v\n"+
+						"expected: %#v\n",
+					index, info.LinesAfterMatch, c.expectedLinesAfterMatch)
 			}
 			return true
 		})
