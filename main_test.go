@@ -116,13 +116,13 @@ func run(workingDir, search, replace string, flags map[string]bool) string {
 	var stdout bytes.Buffer
 
 	if flags["dry-run"] {
-		args = append(args, "-dry-run")
+		args = append(args, "--dry-run")
 	}
 	if flags["verbose"] {
-		args = append(args, "-verbose")
+		args = append(args, "--verbose")
 	}
 	if flags["regexp"] {
-		args = append(args, "-regexp")
+		args = append(args, "--regexp")
 	}
 
 	args = append(args, search)

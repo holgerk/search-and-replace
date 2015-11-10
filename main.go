@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jessevdk/go-flags"
 	"github.com/mgutz/ansi"
 )
 
@@ -19,32 +19,30 @@ func main() {
 }
 
 func mainSub(workingDir string, stdout io.Writer, args []string) {
-	flagSet := flag.NewFlagSet("main", flag.ExitOnError)
-
-	dryRun := flagSet.Bool("dry-run", false, "If true -> do not change anything [default: false]")
-	verbose := flagSet.Bool("verbose", false, "If true -> increase verbosity [default: false]")
-	useRegexp := flagSet.Bool("regexp", false, "If true -> interpret search as regular expression [default: false]")
-
-	flagSet.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: search-and-replace [flags] search replace\n")
-		flagSet.PrintDefaults()
-		os.Exit(1)
+	var opts struct {
+		DryRun  bool `short:"d" long:"dry-run" description:"Do not change anything"`
+		Regexp  bool `short:"r" long:"regexp" description:"Treat search string as regular expression"`
+		Verbose bool `short:"v" long:"verbose" description:"Show verbose debug information"`
+		Args    struct {
+			Search  string
+			Replace string
+		} `positional-args:"yes" required:"yes"`
 	}
 
-	flagSet.Parse(args)
-
-	if flagSet.NArg() != 2 {
-		flagSet.Usage()
+	parser := flags.NewParser(&opts, flags.Default)
+	args, err := parser.ParseArgs(args)
+	if err != nil {
+		return
 	}
 
 	program := Program{
 		RootDirectory: workingDir,
-		Search:        flagSet.Arg(0),
-		Replace:       flagSet.Arg(1),
+		Search:        opts.Args.Search,
+		Replace:       opts.Args.Replace,
 		Stdout:        stdout,
-		DryRun:        *dryRun,
-		Verbose:       *verbose,
-		Regexp:        *useRegexp,
+		DryRun:        opts.DryRun,
+		Verbose:       opts.Verbose,
+		Regexp:        opts.Regexp,
 	}
 	program.Execute()
 }

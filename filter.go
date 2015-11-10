@@ -3,9 +3,10 @@ package main
 import "path/filepath"
 
 var directoryBlacklist = map[string]bool{
-	".git": true,
-	".hg":  true,
-	".svn": true,
+	".git":      true,
+	".hg":       true,
+	".svn":      true,
+	".DS_Store": true,
 }
 
 func Filter(path string) bool {

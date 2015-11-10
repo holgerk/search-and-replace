@@ -8,11 +8,21 @@
 
 ## Usage
 ```
-search-and-replace [flags] SEARCH REPLACE
-  -dry-run
-        If true -> do not change anything [default: false]
-  -verbose
-        If true -> increase verbosity [default: false]
+Usage:
+  search-and-replace [OPTIONS] Search Replace
+
+Application Options:
+  -d, --dry-run  Do not change anything
+  -r, --regexp   Treat search string as regular
+                 expression
+  -v, --verbose  Show verbose debug information
+
+Help Options:
+  -h, --help     Show this help message
+
+Arguments:
+  Search
+  Replace
 ```
 
 ## TODO
