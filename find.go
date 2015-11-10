@@ -12,7 +12,11 @@ func Find(searchDir string, filterFunc FilterFunc) []string {
 			return nil
 		}
 		if filterFunc(path) {
-			return filepath.SkipDir
+			if f.IsDir() {
+				return filepath.SkipDir
+			} else {
+				return nil
+			}
 		}
 		fileList = append(fileList, path)
 		return nil
