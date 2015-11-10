@@ -4,16 +4,46 @@ import "testing"
 
 func TestReplace(t *testing.T) {
 	cases := []struct {
-		in, search, replace, want string
+		content, search, replace, expected string
 	}{
 		{"foobar", "foo", "bar", "barbar"},
 	}
 	for _, c := range cases {
-		got := Replace{Search: c.search, Replace: c.replace}.Execute(c.in, nil)
-		if got != c.want {
+		actual := Replace{Search: c.search, Replace: c.replace}.Execute(c.content, nil)
+		if actual != c.expected {
 			t.Errorf(
-				"Replace{Search: %v, Replace: %v}.Execute(%v) == %v, want %v",
-				c.search, c.replace, c.in, got, c.want)
+				"Replace{Search: %v, Replace: %v}.Execute(%v) == %v, expected %v",
+				c.search, c.replace, c.content, actual, c.expected)
+		}
+	}
+}
+
+func TestReplaceRegexp(t *testing.T) {
+	cases := []struct {
+		content, search, replace, expected string
+	}{
+		{
+			content:  "foobar",
+			search:   "fo+",
+			replace:  "bar",
+			expected: "barbar",
+		},
+		{
+			content:  "foobar",
+			search:   "(...)(...)",
+			replace:  "$2$1",
+			expected: "barfoo",
+		},
+	}
+	for index, c := range cases {
+		replace := Replace{Search: c.search, Replace: c.replace, Regexp: true}
+		actual := replace.Execute(c.content, nil)
+		if actual != c.expected {
+			t.Errorf(
+				"Case: #%d - content: %s, search: %s, replace: %s\n"+
+					"  actual: %#v\n"+
+					"expected: %#v\n",
+				index, c.content, c.search, c.replace, actual, c.expected)
 		}
 	}
 }
@@ -27,13 +57,13 @@ func TestReplaceCallback(t *testing.T) {
 		{true, "barbar"},
 	}
 	for _, c := range cases {
-		got := Replace{Search: "foo", Replace: "bar"}.Execute("foobar", func(info ReplacementInfo) bool {
+		actual := Replace{Search: "foo", Replace: "bar"}.Execute("foobar", func(info ReplacementInfo) bool {
 			return c.callbackResult
 		})
-		if got != c.expected {
+		if actual != c.expected {
 			t.Errorf(
-				"callbackResult: %v, expected: %v, got: %v",
-				c.callbackResult, c.expected, got)
+				"callbackResult: %v, expected: %v, actual: %v",
+				c.callbackResult, c.expected, actual)
 		}
 	}
 }

@@ -7,12 +7,16 @@ const CONTEXT_LINES = 3
 
 type Replace struct {
 	Search, Replace string
+	Regexp          bool
 }
 
 func (r Replace) Execute(in string, callback ReplaceCallback) string {
 	result := ""
 	remainder := in
-	search := regexp.QuoteMeta(r.Search)
+	search := r.Search
+	if !r.Regexp {
+		search = regexp.QuoteMeta(search)
+	}
 	rgx := regexp.MustCompile(search)
 
 	var match []int

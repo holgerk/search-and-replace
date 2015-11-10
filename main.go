@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mgutz/ansi"
@@ -22,6 +23,7 @@ func mainSub(workingDir string, stdout io.Writer, args []string) {
 
 	dryRun := flagSet.Bool("dry-run", false, "If true -> do not change anything [default: false]")
 	verbose := flagSet.Bool("verbose", false, "If true -> increase verbosity [default: false]")
+	useRegexp := flagSet.Bool("regexp", false, "If true -> interpret search as regular expression [default: false]")
 
 	flagSet.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: search-and-replace [flags] search replace\n")
@@ -42,11 +44,9 @@ func mainSub(workingDir string, stdout io.Writer, args []string) {
 		Stdout:        stdout,
 		DryRun:        *dryRun,
 		Verbose:       *verbose,
+		Regexp:        *useRegexp,
 	}
-	err := program.Execute()
-	if err != nil {
-		panic(fmt.Errorf("Program-Execution error(%s)", err))
-	}
+	program.Execute()
 }
 
 type Program struct {
@@ -56,16 +56,29 @@ type Program struct {
 	Stdout        io.Writer
 	DryRun        bool
 	Verbose       bool
+	Regexp        bool
 }
 
-func (p Program) Execute() (err error) {
+func (p Program) Execute() {
 	p.reportInfo(
-		"(search: %s, replace: %s, dry-run: %v)", p.Search, p.Replace, p.DryRun)
+		"(search: %s, replace: %s, dry-run: %v, regexp: %v)",
+		p.Search, p.Replace, p.DryRun, p.Regexp)
 	p.reportVerbose("Root-Directory: %s", p.RootDirectory)
+
+	if p.Regexp {
+		_, err := regexp.Compile(p.Search)
+		if err != nil {
+			p.reportError(
+				"Could not compile regular expression: %s - %s",
+				p.Search, err)
+			return
+		}
+	}
 
 	replace := Replace{
 		Search:  p.Search,
 		Replace: p.Replace,
+		Regexp:  p.Regexp,
 	}
 
 	entries := Find(p.RootDirectory, Filter)

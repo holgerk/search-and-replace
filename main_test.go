@@ -23,13 +23,36 @@ var updateFlag = flag.Bool("update", false, "Update golden directories")
 func TestMainExecute(t *testing.T) {
 	cases := []struct {
 		referenceDir string
+		search       string
 		dryRun       bool
+		regexp       bool
 	}{
-		{"testdata/t1", false},
-		{"testdata/t2", false},
-		{"testdata/t1", true},
+		{
+			referenceDir: "testdata/t1",
+			search:       "foo",
+			dryRun:       false,
+			regexp:       false,
+		},
+		{
+			referenceDir: "testdata/t2",
+			search:       "foo",
+			dryRun:       false,
+			regexp:       false,
+		},
+		{
+			referenceDir: "testdata/t1",
+			search:       "foo",
+			dryRun:       true,
+			regexp:       false,
+		},
+		{
+			referenceDir: "testdata/t1",
+			search:       "fo{2}",
+			dryRun:       false,
+			regexp:       true,
+		},
 	}
-	for _, c := range cases {
+	for index, c := range cases {
 		referenceDir := c.referenceDir
 		workingDir := referenceDir + ".got"
 		goldenDir := referenceDir + ".golden"
@@ -40,7 +63,11 @@ func TestMainExecute(t *testing.T) {
 			panic(err)
 		}
 
-		run(workingDir, c.dryRun, false)
+		run(workingDir, c.search, "bar", map[string]bool{
+			"dry-run": c.dryRun,
+			"regexp":  c.regexp,
+		})
+		// fmt.Println(output)
 
 		// compare directory.got with directory.golden
 		compareDir := goldenDir
@@ -51,8 +78,9 @@ func TestMainExecute(t *testing.T) {
 		cmd.Stdout = new(bytes.Buffer)
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			t.Errorf("Test for %s (dryRun: %v) failed: %s.\n%s\n",
-				workingDir, c.dryRun, err, cmd.Stdout)
+			t.Errorf(
+				"Case #%d - directory: %s, dryRun: %v failed: %s.\n%s\n",
+				index, workingDir, c.dryRun, err, cmd.Stdout)
 
 			if *updateFlag {
 				t.Logf("Updating golden: %s...", goldenDir)
@@ -66,27 +94,39 @@ func TestMainExecute(t *testing.T) {
 	}
 }
 
-func TestPermissionProblems(t *testing.T) {
-	stdout := run("testdata/t3", false, true)
+func TestNotMovableFile(t *testing.T) {
+	stdout := run("testdata/t3", "foo", "bar", map[string]bool{})
 	if !strings.Contains(stdout, "Could not move: foo-not-moveable") {
 		t.Errorf("Missing [Could not move...] message in(%s)", stdout)
 	}
-	// fmt.Println(stdout)
 }
 
-func run(workingDir string, dryRun, verbose bool) string {
+func TestNotCompilableRegexp(t *testing.T) {
+	stdout := run("testdata/t3", "(", "bar", map[string]bool{
+		"regexp": true,
+	})
+	expectedContent := "Could not compile regular expression: ("
+	if !strings.Contains(stdout, expectedContent) {
+		t.Errorf("Missing message(%s) in(%s)", expectedContent, stdout)
+	}
+}
+
+func run(workingDir, search, replace string, flags map[string]bool) string {
 	var args []string
 	var stdout bytes.Buffer
 
-	if dryRun {
+	if flags["dry-run"] {
 		args = append(args, "-dry-run")
 	}
-	if verbose {
+	if flags["verbose"] {
 		args = append(args, "-verbose")
 	}
+	if flags["regexp"] {
+		args = append(args, "-regexp")
+	}
 
-	args = append(args, "foo") // search
-	args = append(args, "bar") // replace
+	args = append(args, search)
+	args = append(args, replace)
 
 	mainSub(workingDir, &stdout, args)
 
