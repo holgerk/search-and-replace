@@ -104,7 +104,7 @@ func (p Program) Execute() (err error) {
 			newContent := replace.Execute(content, func(info ReplacementInfo) bool {
 				matchCount++
 
-				p.reportInfo("Match #%d", matchCount)
+				p.reportInfo("Match #%d in %s", matchCount, p.shortenPath(path))
 				p.reportReplacement(info)
 				return true
 			})
