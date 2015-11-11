@@ -7,15 +7,26 @@ import (
 
 func TestFind(t *testing.T) {
 	cases := []struct {
-		in   string
-		want []string
+		directory string
+		expected  []string
 	}{
-		{"testdata/t1", []string{"testdata/t1/foo.css"}},
+		{
+			directory: "testdata/t1",
+			expected:  []string{"testdata/t1/foo.css"},
+		},
+		{
+			directory: "testdata/t4",
+			expected:  []string{},
+		},
 	}
-	for _, c := range cases {
-		got := Find(c.in, Filter)
-		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Finder(%v) == %v, want %v", c.in, got, c.want)
+	for index, c := range cases {
+		actual := Find(c.directory, Filter)
+		if !reflect.DeepEqual(actual, c.expected) {
+			t.Errorf(
+				"Case: #%d - directory: %s\n"+
+					"  actual: %#v\n"+
+					"expected: %#v\n",
+				index, c.directory, actual, c.expected)
 		}
 	}
 }

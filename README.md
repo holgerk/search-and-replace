@@ -26,4 +26,5 @@ Arguments:
 ```
 
 ## TODO
-- Do not follow symlinks
+- -Do not follow symlinks-
+- Interactive Mode

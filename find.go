@@ -18,6 +18,9 @@ func Find(searchDir string, filterFunc FilterFunc) []string {
 				return nil
 			}
 		}
+		if f.Mode()&os.ModeSymlink == os.ModeSymlink {
+			return filepath.SkipDir
+		}
 		fileList = append(fileList, path)
 		return nil
 	})
