@@ -2,8 +2,8 @@ package main
 
 import "regexp"
 
-const LF = 10
-const CONTEXT_LINES = 3
+const LineFeed = 10
+const ContextLineCount = 3
 
 type Replace struct {
 	Search, Replace string
@@ -91,7 +91,7 @@ func newReplacementInfo(content, replacement string, matchStart, matchEnd int) R
 }
 
 func linesBeforeMatch(content string, lineStartIndex int) string {
-	from := findPreviousLinesStartIndex(content, lineStartIndex, CONTEXT_LINES)
+	from := findPreviousLinesStartIndex(content, lineStartIndex, ContextLineCount)
 	to := lineStartIndex
 	return content[from:to]
 }
@@ -101,7 +101,7 @@ func linesAfterMatch(content string, lineEndIndex int) string {
 		return ""
 	}
 	from := lineEndIndex
-	to := findNextLinesEndIndex(content, lineEndIndex, CONTEXT_LINES)
+	to := findNextLinesEndIndex(content, lineEndIndex, ContextLineCount)
 	if from < len(content)-1 {
 		from++
 	}
@@ -115,7 +115,7 @@ func findLineStartIndex(content string, fromIndex int) int {
 	}
 	for index > 0 {
 		index--
-		if content[index] == LF {
+		if content[index] == LineFeed {
 			return index + 1
 		}
 	}
@@ -128,7 +128,7 @@ func findLineEndIndex(content string, fromIndex int) int {
 		return len(content) - 1
 	}
 	for index <= len(content)-1 {
-		if content[index] == LF {
+		if content[index] == LineFeed {
 			return index
 		}
 		index++
