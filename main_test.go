@@ -82,7 +82,9 @@ func TestMainExecute(t *testing.T) {
 }
 
 func TestNotMovableFile(t *testing.T) {
-	stdout := run("testdata/t3", "foo", "bar", []string{}, map[string]bool{})
+	workingDir := "testdata/t3"
+	os.Chmod(workingDir, 0555)
+	stdout := run(workingDir, "foo", "bar", []string{}, map[string]bool{})
 	if !strings.Contains(stdout, "Could not move: foo-not-moveable") {
 		t.Errorf("Missing [Could not move...] message in(%s)", stdout)
 	}

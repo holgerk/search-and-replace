@@ -11,6 +11,10 @@ func Find(searchDir string, filterFunc FilterFunc) []string {
 		if path == searchDir {
 			return nil
 		}
+		if f == nil {
+			// TODO report fileinfo not readable error
+			return nil
+		}
 		if filterFunc(path) {
 			if f.IsDir() {
 				return filepath.SkipDir
