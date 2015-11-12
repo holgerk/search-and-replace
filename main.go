@@ -163,8 +163,10 @@ func (p Program) Execute() {
 			p.reportInfo("Move to: %s", p.shortenPath(newPath))
 			if !p.DryRun {
 				err = os.Rename(path, newPath)
-				p.reportError("Could not move: %s (%s)", p.shortenPath(path), err)
-				continue
+				if err != nil {
+					p.reportError("Could not move: %s (%s)", p.shortenPath(path), err)
+					continue
+				}
 			}
 		}
 	}
