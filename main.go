@@ -13,6 +13,13 @@ import (
 	"github.com/mgutz/ansi"
 )
 
+var styleRed = ansi.ColorFunc("red")
+var styleRedUnderline = ansi.ColorFunc("red+u")
+var styleGreen = ansi.ColorFunc("green")
+var styleGreenUnderline = ansi.ColorFunc("green+u")
+var styleHeader = ansi.ColorFunc("white+b:black")
+var styleBold = ansi.ColorFunc("+b")
+
 func main() {
 	dir, _ := os.Getwd()
 	mainSub(dir, os.Stdout, os.Stdin, os.Args[1:])
@@ -20,9 +27,9 @@ func main() {
 
 func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string) {
 	var opts struct {
-		DryRun      bool `short:"d" long:"dry-run" description:"Do not change anything"`
-		Regexp      bool `short:"r" long:"regexp" description:"Treat search string as regular expression"`
-		Verbose     bool `short:"v" long:"verbose" description:"Show verbose debug information"`
+		DryRun      bool `short:"d" long:"dry-run"     description:"Do not change anything"`
+		Regexp      bool `short:"r" long:"regexp"      description:"Treat search string as regular expression"`
+		Verbose     bool `short:"v" long:"verbose"     description:"Show verbose debug information"`
 		Interactive bool `short:"i" long:"interactive" description:"Confirm every replacement"`
 		Args        struct {
 			Search  string
@@ -125,10 +132,10 @@ func (p Program) Execute() {
 			newContent := replace.Execute(content, func(info ReplacementInfo) bool {
 				matchCount++
 
-				p.reportInfo("\nMatch #%d in %s", matchCount, p.shortenPath(path))
+				p.printHeader("Match #%d in %s", matchCount, p.shortenPath(path))
 				p.reportReplacement(info)
 
-				if p.Interactive && !ask.question("Replace?") {
+				if p.Interactive && !ask.question(styleBold("Replace?")) {
 					return false
 				}
 
@@ -150,9 +157,9 @@ func (p Program) Execute() {
 		baseName := filepath.Base(path)
 		newName := replace.Execute(baseName, func(info ReplacementInfo) bool {
 
-			p.reportInfo("\nRename %s to %s", info.Match, info.Repl)
+			p.printf("\nRename %s to %s\n", info.Match, info.Repl)
 
-			if p.Interactive && !ask.question("Rename?") {
+			if p.Interactive && !ask.question(styleBold("Rename?")) {
 				return false
 			}
 
@@ -160,7 +167,7 @@ func (p Program) Execute() {
 		})
 		if newName != baseName {
 			newPath := filepath.Join(filepath.Dir(path), newName)
-			p.reportInfo("Move to: %s", p.shortenPath(newPath))
+			p.printHeader("Move to: %s", p.shortenPath(newPath))
 			if !p.DryRun {
 				err = os.Rename(path, newPath)
 				if err != nil {
@@ -185,27 +192,30 @@ func (p Program) reportInfo(format string, a ...interface{}) {
 	fmt.Fprintf(p.Stdout, "[INFO] "+format+"\n", a...)
 }
 
-var red = ansi.ColorFunc("red")
-var redUnderline = ansi.ColorFunc("red+u")
-var green = ansi.ColorFunc("green")
-var greenUnderline = ansi.ColorFunc("green+u")
-
 func (p Program) reportReplacement(info ReplacementInfo) {
 	p.print(info.LinesBeforeMatch)
 
-	p.print(red(info.MatchLine[:info.MatchLineMatchIndex[0]]))
-	p.print(redUnderline(info.MatchLine[info.MatchLineMatchIndex[0]:info.MatchLineMatchIndex[1]]))
-	p.print(red(info.MatchLine[info.MatchLineMatchIndex[1]:]))
+	p.print(styleRed(info.MatchLine[:info.MatchLineMatchIndex[0]]))
+	p.print(styleRedUnderline(info.Match))
+	p.print(styleRed(info.MatchLine[info.MatchLineMatchIndex[1]:]))
 
-	p.print(green(info.ReplLine[:info.ReplLineReplIndex[0]]))
-	p.print(greenUnderline(info.ReplLine[info.ReplLineReplIndex[0]:info.ReplLineReplIndex[1]]))
-	p.print(green(info.ReplLine[info.ReplLineReplIndex[1]:]))
+	p.print(styleGreen(info.ReplLine[:info.ReplLineReplIndex[0]]))
+	p.print(styleGreenUnderline(info.Repl))
+	p.print(styleGreen(info.ReplLine[info.ReplLineReplIndex[1]:]))
 
 	p.print(info.LinesAfterMatch)
 }
 
 func (p Program) print(s string) {
 	fmt.Fprint(p.Stdout, s)
+}
+
+func (p Program) printf(format string, a ...interface{}) {
+	fmt.Fprintf(p.Stdout, format, a...)
+}
+
+func (p Program) printHeader(format string, a ...interface{}) {
+	fmt.Fprintf(p.Stdout, styleHeader("\n "+format)+"\n", a...)
 }
 
 func (p Program) reportVerbose(format string, a ...interface{}) {
