@@ -15,15 +15,16 @@ import (
 
 func main() {
 	dir, _ := os.Getwd()
-	mainSub(dir, os.Stdout, os.Args[1:])
+	mainSub(dir, os.Stdout, os.Stdin, os.Args[1:])
 }
 
-func mainSub(workingDir string, stdout io.Writer, args []string) {
+func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string) {
 	var opts struct {
-		DryRun  bool `short:"d" long:"dry-run" description:"Do not change anything"`
-		Regexp  bool `short:"r" long:"regexp" description:"Treat search string as regular expression"`
-		Verbose bool `short:"v" long:"verbose" description:"Show verbose debug information"`
-		Args    struct {
+		DryRun      bool `short:"d" long:"dry-run" description:"Do not change anything"`
+		Regexp      bool `short:"r" long:"regexp" description:"Treat search string as regular expression"`
+		Verbose     bool `short:"v" long:"verbose" description:"Show verbose debug information"`
+		Interactive bool `short:"i" long:"interactive" description:"Confirm every replacement"`
+		Args        struct {
 			Search  string
 			Replace string
 		} `positional-args:"yes" required:"yes"`
@@ -40,9 +41,11 @@ func mainSub(workingDir string, stdout io.Writer, args []string) {
 		Search:        opts.Args.Search,
 		Replace:       opts.Args.Replace,
 		Stdout:        stdout,
+		Stdin:         stdin,
 		DryRun:        opts.DryRun,
 		Verbose:       opts.Verbose,
 		Regexp:        opts.Regexp,
+		Interactive:   opts.Interactive,
 	}
 	program.Execute()
 }
@@ -52,9 +55,11 @@ type Program struct {
 	Search        string
 	Replace       string
 	Stdout        io.Writer
+	Stdin         io.Reader
 	DryRun        bool
 	Verbose       bool
 	Regexp        bool
+	Interactive   bool
 }
 
 func (p Program) Execute() {
@@ -77,6 +82,11 @@ func (p Program) Execute() {
 		Search:  p.Search,
 		Replace: p.Replace,
 		Regexp:  p.Regexp,
+	}
+
+	ask := Ask{
+		Stdin:  p.Stdin,
+		Stdout: p.Stdout,
 	}
 
 	entries := Find(p.RootDirectory, Filter)
@@ -115,8 +125,13 @@ func (p Program) Execute() {
 			newContent := replace.Execute(content, func(info ReplacementInfo) bool {
 				matchCount++
 
-				p.reportInfo("Match #%d in %s", matchCount, p.shortenPath(path))
+				p.reportInfo("\nMatch #%d in %s", matchCount, p.shortenPath(path))
 				p.reportReplacement(info)
+
+				if p.Interactive && !ask.question("Replace?") {
+					return false
+				}
+
 				return true
 			})
 			if newContent != content {
@@ -134,6 +149,13 @@ func (p Program) Execute() {
 		// Step 2 - Replace search string in file or directory name
 		baseName := filepath.Base(path)
 		newName := replace.Execute(baseName, func(info ReplacementInfo) bool {
+
+			p.reportInfo("\nRename %s to %s", info.Match, info.Repl)
+
+			if p.Interactive && !ask.question("Rename?") {
+				return false
+			}
+
 			return true
 		})
 		if newName != baseName {

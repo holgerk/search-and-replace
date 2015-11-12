@@ -58,12 +58,9 @@ func TestMainExecute(t *testing.T) {
 		goldenDir := referenceDir + ".golden"
 
 		os.RemoveAll(workingDir)
-		err := copyDirectory(referenceDir, workingDir)
-		if err != nil {
-			panic(err)
-		}
+		copyDirectory(referenceDir, workingDir)
 
-		run(workingDir, c.search, "bar", map[string]bool{
+		run(workingDir, c.search, "bar", []string{}, map[string]bool{
 			"dry-run": c.dryRun,
 			"regexp":  c.regexp,
 		})
@@ -74,35 +71,25 @@ func TestMainExecute(t *testing.T) {
 		if c.dryRun {
 			compareDir = referenceDir
 		}
-		cmd := exec.Command("diff", "-ru", workingDir, compareDir)
-		cmd.Stdout = new(bytes.Buffer)
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			t.Errorf(
-				"Case #%d - directory: %s, dryRun: %v failed: %s.\n%s\n",
-				index, workingDir, c.dryRun, err, cmd.Stdout)
+		compare(t, index, compareDir, workingDir)
 
-			if *updateFlag {
-				t.Logf("Updating golden: %s...", goldenDir)
-				os.RemoveAll(goldenDir)
-				err := copyDirectory(workingDir, goldenDir)
-				if err != nil {
-					t.Errorf("Update failed: %s", err)
-				}
-			}
+		if *updateFlag {
+			t.Logf("Updating golden: %s...", goldenDir)
+			os.RemoveAll(goldenDir)
+			copyDirectory(workingDir, goldenDir)
 		}
 	}
 }
 
 func TestNotMovableFile(t *testing.T) {
-	stdout := run("testdata/t3", "foo", "bar", map[string]bool{})
+	stdout := run("testdata/t3", "foo", "bar", []string{}, map[string]bool{})
 	if !strings.Contains(stdout, "Could not move: foo-not-moveable") {
 		t.Errorf("Missing [Could not move...] message in(%s)", stdout)
 	}
 }
 
 func TestNotCompilableRegexp(t *testing.T) {
-	stdout := run("testdata/t3", "(", "bar", map[string]bool{
+	stdout := run("testdata/t3", "(", "bar", []string{}, map[string]bool{
 		"regexp": true,
 	})
 	expectedContent := "Could not compile regular expression: ("
@@ -111,10 +98,53 @@ func TestNotCompilableRegexp(t *testing.T) {
 	}
 }
 
-func run(workingDir, search, replace string, flags map[string]bool) string {
-	var args []string
-	var stdout bytes.Buffer
+func TestInteractiveMode(t *testing.T) {
+	cases := []struct {
+		referenceDir string
+		expectedDir  string
+		answers      []string
+	}{
+		{
+			referenceDir: "testdata/t1",
+			expectedDir:  "testdata/t1.golden",
+			// provide 4 yes-answers
+			answers: []string{"y\n", "Y\n", "\n", "\n"},
+		},
+		{
+			referenceDir: "testdata/t1",
+			expectedDir:  "testdata/t1",
+			// provide 4 no-answers
+			answers: []string{"n\n", "N\n", "w\n", "P\n"},
+		},
+	}
+	for index, c := range cases {
+		workingDir := c.referenceDir + ".got"
 
+		os.RemoveAll(workingDir)
+		copyDirectory(c.referenceDir, workingDir)
+
+		run(workingDir, "foo", "bar", c.answers, map[string]bool{
+			"interactive": true,
+		})
+
+		compare(t, index, c.expectedDir, workingDir)
+	}
+}
+
+func compare(t *testing.T, index int, compareDir, workingDir string) {
+	cmd := exec.Command("diff", "-ru", workingDir, compareDir)
+	cmd.Stdout = new(bytes.Buffer)
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		t.Errorf(
+			"Case #%d - workingDir: %s, compareDir: %v failed: %s.\n%s\n",
+			index, workingDir, compareDir, err, cmd.Stdout)
+	}
+}
+
+func run(workingDir, search, replace string, stdinStr []string, flags map[string]bool) string {
+
+	var args []string
 	if flags["dry-run"] {
 		args = append(args, "--dry-run")
 	}
@@ -124,17 +154,22 @@ func run(workingDir, search, replace string, flags map[string]bool) string {
 	if flags["regexp"] {
 		args = append(args, "--regexp")
 	}
+	if flags["interactive"] {
+		args = append(args, "--interactive")
+	}
 
 	args = append(args, search)
 	args = append(args, replace)
 
-	mainSub(workingDir, &stdout, args)
+	stdin := &StringReader{data: stdinStr}
+	var stdout bytes.Buffer
+	mainSub(workingDir, &stdout, stdin, args)
 
 	return stdout.String()
 }
 
-func copyDirectory(source, target string) (err error) {
-	err = filepath.Walk(source, func(path string, f os.FileInfo, err error) (werr error) {
+func copyDirectory(source, target string) {
+	err := filepath.Walk(source, func(path string, f os.FileInfo, err error) (werr error) {
 		newPath := strings.Replace(path, source, target, 1)
 		if f.IsDir() {
 			if werr = os.Mkdir(newPath, f.Mode()); werr != nil {
@@ -148,7 +183,7 @@ func copyDirectory(source, target string) (err error) {
 		return
 	})
 	if err != nil {
-		return fmt.Errorf("Could not copy directory(%s)", err)
+		panic(fmt.Errorf("Could not copy directory(%s)", err))
 	}
 	return
 }
@@ -184,5 +219,23 @@ func copyFile(source, target string) (err error) {
 		return
 	}
 
+	return
+}
+
+// copied from standard library (bufio_test.go) - don't how to import :-(
+// A StringReader delivers its data one string segment at a time via Read.
+type StringReader struct {
+	data []string
+	step int
+}
+
+func (r *StringReader) Read(p []byte) (n int, err error) {
+	if r.step < len(r.data) {
+		s := r.data[r.step]
+		n = copy(p, s)
+		r.step++
+	} else {
+		err = io.EOF
+	}
 	return
 }

@@ -55,8 +55,10 @@ type ReplaceCallback func(info ReplacementInfo) bool
 
 type ReplacementInfo struct {
 	LinesBeforeMatch    string
+	Match               string
 	MatchLine           string
 	MatchLineMatchIndex []int
+	Repl                string
 	ReplLine            string
 	ReplLineReplIndex   []int
 	LinesAfterMatch     string
@@ -82,8 +84,10 @@ func newReplacementInfo(content, replacement string, matchStart, matchEnd int) R
 
 	return ReplacementInfo{
 		LinesBeforeMatch:    linesBeforeMatch(content, lineStartIndex),
+		Match:               matchLine[matchLineMatchIndex[0]:matchLineMatchIndex[1]],
 		MatchLine:           matchLine,
 		MatchLineMatchIndex: matchLineMatchIndex,
+		Repl:                replacementLine[replacementLineReplacementIndex[0]:replacementLineReplacementIndex[1]],
 		ReplLine:            replacementLine,
 		ReplLineReplIndex:   replacementLineReplacementIndex,
 		LinesAfterMatch:     linesAfterMatch(content, lineEndIndex),
