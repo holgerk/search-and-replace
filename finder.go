@@ -5,24 +5,28 @@ import (
 	"path/filepath"
 )
 
-func Find(searchDir string, filterFunc FilterFunc) []string {
+type Finder struct {
+	output Output
+}
+
+func (f Finder) Find(searchDir string, filterFunc FilterFunc) []string {
 	fileList := []string{}
-	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
+	filepath.Walk(searchDir, func(path string, fi os.FileInfo, err error) error {
 		if path == searchDir {
 			return nil
 		}
-		if f == nil {
-			// TODO report fileinfo not readable error
+		if fi == nil {
+			f.output.reportError("Could not read fileinfo: " + path)
 			return nil
 		}
 		if filterFunc(path) {
-			if f.IsDir() {
+			if fi.IsDir() {
 				return filepath.SkipDir
 			} else {
 				return nil
 			}
 		}
-		if f.Mode()&os.ModeSymlink == os.ModeSymlink {
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 			return filepath.SkipDir
 		}
 		fileList = append(fileList, path)

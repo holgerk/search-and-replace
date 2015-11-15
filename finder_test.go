@@ -20,7 +20,7 @@ func TestFind(t *testing.T) {
 		},
 	}
 	for index, c := range cases {
-		actual := Find(c.directory, Filter)
+		actual := Finder{}.Find(c.directory, Filter)
 		if !reflect.DeepEqual(actual, c.expected) {
 			t.Errorf(
 				"Case: #%d - directory: %s\n"+

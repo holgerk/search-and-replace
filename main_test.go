@@ -94,6 +94,18 @@ func TestNotMovableFile(t *testing.T) {
 	assertContains(t, stdout, "Could not move: foo-not-moveable")
 }
 
+func TestNotWritableFile(t *testing.T) {
+	referenceDir := "testdata/t1"
+	workingDir := referenceDir + ".got"
+
+	os.RemoveAll(workingDir)
+	copyDirectory(referenceDir, workingDir)
+	os.Chmod(workingDir+"/foo.css", 0555)
+
+	stdout := run(workingDir, []string{}, []string{"foo", "bar"})
+	assertContains(t, stdout, "Could not write: foo.css")
+}
+
 func TestNotCompilableRegexp(t *testing.T) {
 	stdout := run("testdata/t3", []string{}, []string{"--regexp", "(", "bar"})
 	assertContains(t, stdout, "Could not compile regular expression: (")
