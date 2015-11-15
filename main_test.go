@@ -60,10 +60,16 @@ func TestMainExecute(t *testing.T) {
 		os.RemoveAll(workingDir)
 		copyDirectory(referenceDir, workingDir)
 
-		run(workingDir, c.search, "bar", []string{}, map[string]bool{
-			"dry-run": c.dryRun,
-			"regexp":  c.regexp,
-		})
+		args := []string{}
+		if c.dryRun {
+			args = append(args, "--dry-run")
+		}
+		if c.regexp {
+			args = append(args, "--regexp")
+		}
+		args = append(args, c.search)
+		args = append(args, "bar")
+		run(workingDir, []string{}, args)
 		// fmt.Println(output)
 
 		// compare directory.got with directory.golden
@@ -84,20 +90,18 @@ func TestMainExecute(t *testing.T) {
 func TestNotMovableFile(t *testing.T) {
 	workingDir := "testdata/t3"
 	os.Chmod(workingDir, 0555)
-	stdout := run(workingDir, "foo", "bar", []string{}, map[string]bool{})
-	if !strings.Contains(stdout, "Could not move: foo-not-moveable") {
-		t.Errorf("Missing [Could not move...] message in(%s)", stdout)
-	}
+	stdout := run(workingDir, []string{}, []string{"foo", "bar"})
+	assertContains(t, stdout, "Could not move: foo-not-moveable")
 }
 
 func TestNotCompilableRegexp(t *testing.T) {
-	stdout := run("testdata/t3", "(", "bar", []string{}, map[string]bool{
-		"regexp": true,
-	})
-	expectedContent := "Could not compile regular expression: ("
-	if !strings.Contains(stdout, expectedContent) {
-		t.Errorf("Missing message(%s) in(%s)", expectedContent, stdout)
-	}
+	stdout := run("testdata/t3", []string{}, []string{"--regexp", "(", "bar"})
+	assertContains(t, stdout, "Could not compile regular expression: (")
+}
+
+func TestHelpFlag(t *testing.T) {
+	stdout := run("testdata/t3", []string{}, []string{"--help"})
+	assertContains(t, stdout, "Application Options")
 }
 
 func TestInteractiveMode(t *testing.T) {
@@ -125,9 +129,7 @@ func TestInteractiveMode(t *testing.T) {
 		os.RemoveAll(workingDir)
 		copyDirectory(c.referenceDir, workingDir)
 
-		run(workingDir, "foo", "bar", c.answers, map[string]bool{
-			"interactive": true,
-		})
+		run(workingDir, c.answers, []string{"--interactive", "foo", "bar"})
 
 		compare(t, index, c.expectedDir, workingDir)
 	}
@@ -144,25 +146,7 @@ func compare(t *testing.T, index int, compareDir, workingDir string) {
 	}
 }
 
-func run(workingDir, search, replace string, stdinStr []string, flags map[string]bool) string {
-
-	var args []string
-	if flags["dry-run"] {
-		args = append(args, "--dry-run")
-	}
-	if flags["verbose"] {
-		args = append(args, "--verbose")
-	}
-	if flags["regexp"] {
-		args = append(args, "--regexp")
-	}
-	if flags["interactive"] {
-		args = append(args, "--interactive")
-	}
-
-	args = append(args, search)
-	args = append(args, replace)
-
+func run(workingDir string, stdinStr, args []string) string {
 	stdin := &StringReader{data: stdinStr}
 	var stdout bytes.Buffer
 	mainSub(workingDir, &stdout, stdin, args)
@@ -240,4 +224,10 @@ func (r *StringReader) Read(p []byte) (n int, err error) {
 		err = io.EOF
 	}
 	return
+}
+
+func assertContains(t *testing.T, haystack, needle string) {
+	if !strings.Contains(haystack, needle) {
+		t.Errorf("Expected string(%s) in(%s)", needle, haystack)
+	}
 }
