@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -22,25 +23,28 @@ var styleBold = ansi.ColorFunc("+b")
 
 func main() {
 	dir, _ := os.Getwd()
-	mainSub(dir, os.Stdout, os.Stdin, os.Args[1:])
+	exitCode := mainSub(dir, os.Stdout, os.Stdin, os.Args[1:])
+	if exitCode != 0 {
+		os.Exit(exitCode)
+	}
 }
 
-func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string) {
-	var opts struct {
-		DryRun      bool `short:"d" long:"dry-run"     description:"Do not change anything"`
-		Regexp      bool `short:"r" long:"regexp"      description:"Treat search string as regular expression"`
-		Verbose     bool `short:"v" long:"verbose"     description:"Show verbose debug information"`
-		Interactive bool `short:"i" long:"interactive" description:"Confirm every replacement"`
-		Args        struct {
-			Search  string
-			Replace string
-		} `positional-args:"yes" required:"yes"`
-	}
+type options struct {
+	DryRun      bool `short:"d" long:"dry-run"     description:"Do not change anything"`
+	Regexp      bool `short:"r" long:"regexp"      description:"Treat search string as regular expression"`
+	Verbose     bool `short:"v" long:"verbose"     description:"Show verbose debug information"`
+	Interactive bool `short:"i" long:"interactive" description:"Confirm every replacement"`
+	Args        struct {
+		Search  string
+		Replace string
+	} `positional-args:"yes" required:"yes"`
+}
 
-	parser := flags.NewParser(&opts, flags.Default)
-	args, err := parser.ParseArgs(args)
-	if err != nil {
-		return
+func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string) int {
+
+	opts, exitCode := parseOptions(stdout, args)
+	if opts == nil {
+		return exitCode
 	}
 
 	program := Program{
@@ -55,6 +59,8 @@ func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string
 		Interactive:   opts.Interactive,
 	}
 	program.Execute()
+
+	return 0
 }
 
 type Program struct {
@@ -223,4 +229,31 @@ func (p Program) reportVerbose(format string, a ...interface{}) {
 		return
 	}
 	p.reportInfo(format, a...)
+}
+
+func parseOptions(stdout io.Writer, args []string) (*options, int) {
+	opts := options{}
+
+	parser := flags.NewParser(&opts, flags.PassDoubleDash|flags.HelpFlag)
+	args, err := parser.ParseArgs(args)
+	if err != nil {
+		if parserErr, ok := err.(*flags.Error); ok {
+			if parserErr.Type != flags.ErrHelp {
+				fmt.Printf("%s\n\n", parserErr.Message)
+			}
+
+			var b bytes.Buffer
+			parser.WriteHelp(&b)
+			fmt.Fprint(stdout, b.String())
+
+			if parserErr.Type == flags.ErrHelp {
+				return nil, 0
+			}
+		} else {
+			panic(err)
+		}
+		return nil, 2
+	}
+
+	return &opts, 0
 }
