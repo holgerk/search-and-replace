@@ -6,6 +6,13 @@
 ## Features
 - search and replace a string in the current directory
 - regular expressions
+- rename files and directories
+- interactive mode - confirm every replacement and rename
+
+## Installation
+```
+go get github.com/holgerk/search-and-replace
+```
 
 ## Usage
 ```
@@ -26,15 +33,15 @@ Arguments:
   Replace
 ```
 
-## Demo (Interactive Mode)
-![demo-interactive-mode](https://cloud.githubusercontent.com/assets/1426236/11192315/c7ed5c66-8ca0-11e5-8d8f-46ec8f18d6cd.gif)
-
 ## Examples
 ### Regexp
 match baarfooo and replace with fooobaar
 ```
 search-and-replace -r "(ba+r)(fo+)" "${2}${1}"
 ```
+
+## Demo (Interactive Mode)
+![demo-interactive-mode](https://cloud.githubusercontent.com/assets/1426236/11192315/c7ed5c66-8ca0-11e5-8d8f-46ec8f18d6cd.gif)
 
 ## TODO
 - ignore files from .gitignore
