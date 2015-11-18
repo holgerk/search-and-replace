@@ -6,10 +6,10 @@ import (
 )
 
 type Finder struct {
-	output Output
+	output *Output
 }
 
-func (f Finder) Find(searchDir string, filterFunc FilterFunc) []string {
+func (f *Finder) Find(searchDir string, filterFunc FilterFunc) []string {
 	fileList := []string{}
 	filepath.Walk(searchDir, func(path string, fi os.FileInfo, err error) error {
 		if path == searchDir {

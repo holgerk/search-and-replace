@@ -9,7 +9,7 @@ func TestReplace(t *testing.T) {
 		{"foobar", "foo", "bar", "barbar"},
 	}
 	for _, c := range cases {
-		actual := Replace{Search: c.search, Replace: c.replace}.Execute(c.content, nil)
+		actual := (&Replace{Search: c.search, Replace: c.replace}).Execute(c.content, nil)
 		if actual != c.expected {
 			t.Errorf(
 				"Replace{Search: %v, Replace: %v}.Execute(%v) == %v, expected %v",
@@ -57,7 +57,7 @@ func TestReplaceCallback(t *testing.T) {
 		{true, "barbar"},
 	}
 	for _, c := range cases {
-		actual := Replace{Search: "foo", Replace: "bar"}.Execute("foobar", func(info ReplacementInfo) bool {
+		actual := (&Replace{Search: "foo", Replace: "bar"}).Execute("foobar", func(info ReplacementInfo) bool {
 			return c.callbackResult
 		})
 		if actual != c.expected {
@@ -105,7 +105,7 @@ func TestReplacementInfoContextLines(t *testing.T) {
 		},
 	}
 	for index, c := range cases {
-		Replace{Search: "foo", Replace: "bar"}.Execute(c.content, func(info ReplacementInfo) bool {
+		(&Replace{Search: "foo", Replace: "bar"}).Execute(c.content, func(info ReplacementInfo) bool {
 			if info.LinesBeforeMatch != c.expectedLinesBeforeMatch {
 				t.Errorf(
 					"Case: #%d - LinesBeforeMatch\n"+

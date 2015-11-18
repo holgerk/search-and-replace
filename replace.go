@@ -10,7 +10,7 @@ type Replace struct {
 	Regexp          bool
 }
 
-func (r Replace) Execute(in string, callback ReplaceCallback) string {
+func (r *Replace) Execute(in string, callback ReplaceCallback) string {
 	result := ""
 	remainder := in
 	search := r.Search

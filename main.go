@@ -41,7 +41,7 @@ type options struct {
 
 func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string) int {
 
-	output := Output{
+	output := &Output{
 		stdout:  stdout,
 		verbose: false,
 	}
@@ -53,11 +53,11 @@ func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string
 
 	output.verbose = opts.Verbose
 
-	finder := Finder{
+	finder := &Finder{
 		output: output,
 	}
 
-	program := Program{
+	program := &Program{
 		Output: output,
 		Finder: finder,
 
@@ -81,8 +81,8 @@ func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string
 }
 
 type Program struct {
-	Output Output
-	Finder Finder
+	Output *Output
+	Finder *Finder
 
 	RootDirectory string
 	Stdout        io.Writer
@@ -97,7 +97,7 @@ type Program struct {
 	Interactive bool
 }
 
-func (p Program) Execute() {
+func (p *Program) Execute() {
 	p.Output.reportVerbose(
 		"(search: %s, replace: %s, dry-run: %v, regexp: %v)",
 		p.Search, p.Replace, p.DryRun, p.Regexp)
@@ -113,13 +113,13 @@ func (p Program) Execute() {
 		}
 	}
 
-	replace := Replace{
+	replace := &Replace{
 		Search:  p.Search,
 		Replace: p.Replace,
 		Regexp:  p.Regexp,
 	}
 
-	ask := Ask{
+	ask := &Ask{
 		Stdin:  p.Stdin,
 		Stdout: p.Stdout,
 	}
@@ -209,11 +209,11 @@ func (p Program) Execute() {
 	return
 }
 
-func (p Program) shortenPath(path string) string {
+func (p *Program) shortenPath(path string) string {
 	return strings.Replace(path, p.RootDirectory+"/", "", 1)
 }
 
-func parseOptions(output Output, args []string) (*options, int) {
+func parseOptions(output *Output, args []string) (*options, int) {
 	opts := options{}
 
 	parser := flags.NewParser(&opts, flags.PassDoubleDash|flags.HelpFlag)
