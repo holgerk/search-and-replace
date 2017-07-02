@@ -53,8 +53,11 @@ func mainSub(workingDir string, stdout io.Writer, stdin io.Reader, args []string
 
 	output.verbose = opts.Verbose
 
+	filter := NewFilter(workingDir)
+
 	finder := &Finder{
 		output: output,
+		filter: filter,
 	}
 
 	program := &Program{
@@ -124,7 +127,7 @@ func (p *Program) Execute() {
 		Stdout: p.Stdout,
 	}
 
-	entries := p.Finder.Find(p.RootDirectory, Filter)
+	entries := p.Finder.Find(p.RootDirectory)
 
 	// iterate reversed, so directories are renamed after files are written
 	for i := len(entries) - 1; i >= 0; i-- {

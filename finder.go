@@ -7,9 +7,10 @@ import (
 
 type Finder struct {
 	output *Output
+	filter Filterer
 }
 
-func (f *Finder) Find(searchDir string, filterFunc FilterFunc) []string {
+func (f *Finder) Find(searchDir string) []string {
 	fileList := []string{}
 	filepath.Walk(searchDir, func(path string, fi os.FileInfo, err error) error {
 		if path == searchDir {
@@ -19,7 +20,7 @@ func (f *Finder) Find(searchDir string, filterFunc FilterFunc) []string {
 			f.output.reportError("Could not read fileinfo: " + path)
 			return nil
 		}
-		if filterFunc(path) {
+		if f.filter.Filter(path) {
 			if fi.IsDir() {
 				return filepath.SkipDir
 			} else {
@@ -34,5 +35,3 @@ func (f *Finder) Find(searchDir string, filterFunc FilterFunc) []string {
 	})
 	return fileList
 }
-
-type FilterFunc func(path string) bool

@@ -17,7 +17,8 @@ func TestFilter(t *testing.T) {
 		{".svn", true},
 	}
 	for _, c := range cases {
-		got := Filter(c.in)
+		filter := NewFilter("")
+		got := filter.Filter(c.in)
 		if got != c.want {
 			t.Errorf("Filter(%v) == %v, want %v", c.in, got, c.want)
 		}
