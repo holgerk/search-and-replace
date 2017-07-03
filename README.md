@@ -13,6 +13,9 @@
 ## Installation
 ```
 go get github.com/holgerk/search-and-replace
+cd $GOPATH/src/github.com/holgerk/search-and-replace
+go get
+go install
 ```
 
 ## Usage
